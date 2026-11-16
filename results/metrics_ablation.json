@@ -1,0 +1,190 @@
+{
+  "domain_membership": {
+    "spectral": [
+      "rhythmic_features.mfcc_10_mean",
+      "rhythmic_features.mfcc_10_std",
+      "rhythmic_features.mfcc_11_mean",
+      "rhythmic_features.mfcc_11_std",
+      "rhythmic_features.mfcc_12_mean",
+      "rhythmic_features.mfcc_12_std",
+      "rhythmic_features.mfcc_13_mean",
+      "rhythmic_features.mfcc_13_std",
+      "rhythmic_features.mfcc_1_mean",
+      "rhythmic_features.mfcc_1_std",
+      "rhythmic_features.mfcc_2_mean",
+      "rhythmic_features.mfcc_2_std",
+      "rhythmic_features.mfcc_3_mean",
+      "rhythmic_features.mfcc_3_std",
+      "rhythmic_features.mfcc_4_mean",
+      "rhythmic_features.mfcc_4_std",
+      "rhythmic_features.mfcc_5_mean",
+      "rhythmic_features.mfcc_5_std",
+      "rhythmic_features.mfcc_6_mean",
+      "rhythmic_features.mfcc_6_std",
+      "rhythmic_features.mfcc_7_mean",
+      "rhythmic_features.mfcc_7_std",
+      "rhythmic_features.mfcc_8_mean",
+      "rhythmic_features.mfcc_8_std",
+      "rhythmic_features.mfcc_9_mean",
+      "rhythmic_features.mfcc_9_std",
+      "rhythmic_features.spectral_bandwidth_mean_hz",
+      "rhythmic_features.spectral_centroid_mean_hz",
+      "rhythmic_features.spectral_flatness_mean",
+      "rhythmic_features.spectral_rolloff_mean_hz",
+      "rhythmic_features.zero_crossing_rate_mean",
+      "rhythmic_features.zero_crossing_rate_std"
+    ],
+    "voice_quality": [
+      "vocal_features.hnr",
+      "vocal_features.jitter",
+      "vocal_features.shimmer"
+    ],
+    "prosodic": [
+      "pitch_contour_features.pitch_contour_mean_slope",
+      "pitch_contour_features.pitch_contour_variability",
+      "rhythmic_features.intensity_coefficient_of_variation",
+      "rhythmic_features.intensity_mean",
+      "rhythmic_features.intensity_mean_db",
+      "rhythmic_features.intensity_percentile_10",
+      "rhythmic_features.intensity_percentile_90",
+      "rhythmic_features.intensity_range",
+      "rhythmic_features.intensity_variance",
+      "rhythmic_features.pitch_median_hz",
+      "rhythmic_features.pitch_variability_hz",
+      "rhythmic_features.pitch_variability_semitones",
+      "rhythmic_features.speaking_time_ratio",
+      "vocal_features.f1_mean",
+      "vocal_features.f2_mean",
+      "vocal_features.f3_mean",
+      "vocal_features.max_pitch_hz",
+      "vocal_features.mean_pitch_hz",
+      "vocal_features.min_pitch_hz",
+      "vocal_features.pitch_range_semitones",
+      "vocal_features.pitch_stability_score",
+      "vocal_features.pitch_stability_variance"
+    ],
+    "temporal": [
+      "rhythmic_features.avg_pause_duration",
+      "rhythmic_features.inter_pause_interval_mean",
+      "rhythmic_features.inter_pause_interval_variability",
+      "rhythmic_features.long_pause_count",
+      "rhythmic_features.long_pause_ratio",
+      "rhythmic_features.max_pause_duration",
+      "rhythmic_features.mean_burst_duration",
+      "rhythmic_features.min_pause_duration",
+      "rhythmic_features.pause_count",
+      "rhythmic_features.pause_duration_variability",
+      "rhythmic_features.pause_rate_per_minute",
+      "rhythmic_features.pause_ratio",
+      "rhythmic_features.speech_activation_index",
+      "rhythmic_features.speech_activity_confidence_score",
+      "rhythmic_features.speech_burst_count",
+      "rhythmic_features.speech_hesitation_index",
+      "rhythmic_features.unvoiced_ratio",
+      "rhythmic_features.usable_speech_ratio",
+      "rhythmic_features.voiced_ratio",
+      "waveform_features.silence_ratio"
+    ]
+  },
+  "unassigned": [
+    "audio_quality_features.clipping_ratio",
+    "audio_quality_features.dc_offset",
+    "audio_quality_features.peak_amplitude",
+    "rhythmic_features.call_response_context_score",
+    "rhythmic_features.emotion_readiness_comparison_score",
+    "rhythmic_features.noise_floor_db",
+    "rhythmic_features.phrase_prosody_readiness_score",
+    "rhythmic_features.speech_delivery_variability_index",
+    "rhythmic_features.speech_noise_contrast_db",
+    "waveform_features.transient_count",
+    "waveform_features.waveform_energy_mean",
+    "waveform_features.waveform_energy_skewness",
+    "waveform_features.waveform_energy_variance"
+  ],
+  "tasks": {
+    "detection": {
+      "spectral": {
+        "best_macro_f1": 0.6435866527329224,
+        "best_model": "random_forest",
+        "per_model": {
+          "svm_rbf": 0.5909012998826993,
+          "random_forest": 0.6435866527329224
+        }
+      },
+      "voice_quality": {
+        "best_macro_f1": 0.6136120956099725,
+        "best_model": "svm_rbf",
+        "per_model": {
+          "svm_rbf": 0.6136120956099725,
+          "random_forest": 0.5185388093239031
+        }
+      },
+      "prosodic": {
+        "best_macro_f1": 0.5432386830591974,
+        "best_model": "svm_rbf",
+        "per_model": {
+          "svm_rbf": 0.5432386830591974,
+          "random_forest": 0.5088408223490405
+        }
+      },
+      "temporal": {
+        "best_macro_f1": 0.6993727876599098,
+        "best_model": "svm_rbf",
+        "per_model": {
+          "svm_rbf": 0.6993727876599098,
+          "random_forest": 0.6826897581592479
+        }
+      },
+      "combined": {
+        "best_macro_f1": 0.6485080592625208,
+        "best_model": "svm_rbf",
+        "per_model": {
+          "svm_rbf": 0.6485080592625208,
+          "random_forest": 0.6164648409329212
+        }
+      }
+    },
+    "severity": {
+      "spectral": {
+        "best_macro_f1": 0.18512943425365214,
+        "best_model": "svm_rbf",
+        "per_model": {
+          "svm_rbf": 0.18512943425365214,
+          "random_forest": 0.18001987676406284
+        }
+      },
+      "voice_quality": {
+        "best_macro_f1": 0.2791485756007019,
+        "best_model": "svm_rbf",
+        "per_model": {
+          "svm_rbf": 0.2791485756007019,
+          "random_forest": 0.20315428369079605
+        }
+      },
+      "prosodic": {
+        "best_macro_f1": 0.14939987064481527,
+        "best_model": "random_forest",
+        "per_model": {
+          "svm_rbf": 0.11597176073817801,
+          "random_forest": 0.14939987064481527
+        }
+      },
+      "temporal": {
+        "best_macro_f1": 0.31195122588964025,
+        "best_model": "svm_rbf",
+        "per_model": {
+          "svm_rbf": 0.31195122588964025,
+          "random_forest": 0.262337611483898
+        }
+      },
+      "combined": {
+        "best_macro_f1": 0.16240355430691164,
+        "best_model": "svm_rbf",
+        "per_model": {
+          "svm_rbf": 0.16240355430691164,
+          "random_forest": 0.16158806171326917
+        }
+      }
+    }
+  }
+}

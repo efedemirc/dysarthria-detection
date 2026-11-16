@@ -1,0 +1,809 @@
+--- a/src/schemas/clvad_enums.py
++++ b/src/schemas/clvad_enums.py
+@@ -63,6 +63,7 @@
+     SPEECH_PROSODY = "speech_prosody"
+     SPEECH_VAD_CONFIDENCE = "speech_vad_confidence"
+     SPEECH_SPECTRAL = "speech_spectral"
++    SPEECH_MFCC = "speech_mfcc"
+     SPEECH_RHYTHM = "speech_rhythm"
+     SPEECH_TURN_DYNAMICS = "speech_turn_dynamics"
+     FLOW_TIMING = "flow_timing"
+--- a/src/features/temporal/speech_mfcc.py
++++ b/src/features/temporal/speech_mfcc.py
+@@ -0,0 +1,166 @@
++"""Speech MFCC + zero-crossing-rate analytic for cepstral delivery summaries.
++
++Emits interpretable scalar summaries (per-coefficient mean and standard
++deviation) of the first 13 Mel-frequency cepstral coefficients, plus
++zero-crossing-rate mean and standard deviation. These are the hand-crafted
++features consumed by the SVM/Random-Forest baselines.
++
++Design note
++-----------
++Following the speech-lane house style established by ``speech_spectral`` —
++"coverage is intentionally limited to interpretable scalar summaries" — this
++analytic deliberately does NOT export the full time-resolved MFCC matrix or a
++log-Mel spectrogram. Temporal dynamics (delta / delta-delta information) are
++captured by the deep model's spectrogram input at training time, not stored as
++near-constant scalar summaries (the mean of a first difference tends to ~0 over
++an utterance and carries little discriminative signal).
++"""
++
++from __future__ import annotations
++
++from typing import Any, Dict, Optional
++
++import numpy as np
++
++from src.schemas.clvad_schema import AnalyticID, AnalyticOutput
++
++try:
++    import librosa as _librosa
++    _LIBROSA_AVAILABLE = True
++except ImportError:  # pragma: no cover - environment-specific
++    _librosa = None  # type: ignore[assignment]
++    _LIBROSA_AVAILABLE = False
++
++_ANALYTIC_ID = AnalyticID.SPEECH_MFCC
++_HOP_LENGTH = 512
++_N_FFT = 2048
++_N_MFCC = 13
++
++
++def run(processed_input: Any) -> AnalyticOutput:
++    """Return per-coefficient MFCC summaries and ZCR summaries for speech audio."""
++    skip_reason = _check_inputs(processed_input)
++    if skip_reason is not None:
++        return AnalyticOutput(
++            analytic_id=_ANALYTIC_ID,
++            status="skipped",
++            fields={},
++            skip_reason=skip_reason,
++        )
++
++    try:
++        waveform = _prepare_waveform(processed_input.normalized_waveform)
++        sample_rate = _resolve_sample_rate(processed_input)
++        if not bool(np.any(waveform != 0.0)):
++            return AnalyticOutput(
++                analytic_id=_ANALYTIC_ID,
++                status="skipped",
++                fields={},
++                skip_reason="speech_mfcc: normalized_waveform is all-zero",
++            )
++
++        fields: Dict[str, float] = {}
++
++        mfccs = _librosa.feature.mfcc(
++            y=waveform,
++            sr=sample_rate,
++            n_mfcc=_N_MFCC,
++            n_fft=_N_FFT,
++            hop_length=_HOP_LENGTH,
++        )  # shape: (n_mfcc, n_frames)
++        for coeff_index in range(_N_MFCC):
++            coeff_number = coeff_index + 1
++            row = mfccs[coeff_index]
++            mean_value = _mean_or_none(row)
++            std_value = _std_or_none(row)
++            if mean_value is not None:
++                fields[f"mfcc_{coeff_number}_mean"] = mean_value
++            if std_value is not None:
++                fields[f"mfcc_{coeff_number}_std"] = std_value
++
++        zcr = _librosa.feature.zero_crossing_rate(
++            y=waveform,
++            frame_length=_N_FFT,
++            hop_length=_HOP_LENGTH,
++        )[0]
++        zcr_mean = _mean_or_none(zcr)
++        zcr_std = _std_or_none(zcr)
++        if zcr_mean is not None:
++            fields["zero_crossing_rate_mean"] = zcr_mean
++        if zcr_std is not None:
++            fields["zero_crossing_rate_std"] = zcr_std
++
++        if not fields:
++            return AnalyticOutput(
++                analytic_id=_ANALYTIC_ID,
++                status="skipped",
++                fields={},
++                skip_reason="speech_mfcc: no finite cepstral frames",
++            )
++        return AnalyticOutput(
++            analytic_id=_ANALYTIC_ID,
++            status="success",
++            fields=fields,
++        )
++    except ValueError:
++        raise
++    except Exception as exc:  # pragma: no cover - defensive engine boundary
++        return AnalyticOutput(
++            analytic_id=_ANALYTIC_ID,
++            status="failed",
++            fields={},
++            error_message=f"speech_mfcc: {type(exc).__name__}: {exc}",
++        )
++
++
++def _check_inputs(processed_input: Any) -> Optional[str]:
++    if not _LIBROSA_AVAILABLE:
++        return "speech_mfcc: librosa unavailable"
++    waveform = getattr(processed_input, "normalized_waveform", None)
++    if waveform is None:
++        return "speech_mfcc: normalized_waveform unavailable"
++    try:
++        if len(waveform) == 0:
++            return "speech_mfcc: normalized_waveform is empty"
++    except TypeError:
++        return "speech_mfcc: normalized_waveform is not array-like"
++    if getattr(processed_input, "sample_rate", None) is None:
++        return "speech_mfcc: sample_rate unavailable"
++    return None
++
++
++def _prepare_waveform(waveform: Any) -> np.ndarray:
++    prepared = np.asarray(waveform, dtype=float)
++    if prepared.ndim != 1:
++        raise ValueError("normalized_waveform must be a mono one-dimensional array")
++    if prepared.size == 0:
++        raise ValueError("normalized_waveform must contain at least one sample")
++    if not bool(np.all(np.isfinite(prepared))):
++        raise ValueError("normalized_waveform contains non-finite samples")
++    return prepared
++
++
++def _resolve_sample_rate(processed_input: Any) -> int:
++    sample_rate = int(getattr(processed_input, "sample_rate"))
++    if sample_rate <= 0:
++        raise ValueError("sample_rate must be a positive integer")
++    return sample_rate
++
++
++def _mean_or_none(values: Any) -> Optional[float]:
++    array = np.asarray(values, dtype=float)
++    finite = array[np.isfinite(array)]
++    if finite.size == 0:
++        return None
++    return float(np.mean(finite))
++
++
++def _std_or_none(values: Any) -> Optional[float]:
++    array = np.asarray(values, dtype=float)
++    finite = array[np.isfinite(array)]
++    if finite.size == 0:
++        return None
++    return float(np.std(finite))
++
++
++__all__ = ["run", "_mean_or_none", "_std_or_none"]
+--- a/src/schemas/clvad_features_rhythmic.py
++++ b/src/schemas/clvad_features_rhythmic.py
+@@ -291,6 +291,162 @@
+                     "Owner: speech_spectral.",
+         ge=0.0,
+     )
++    mfcc_1_mean: Optional[float] = Field(
++        default=None,
++        description="Mean of MFCC 1 across analysis frames. "
++                    "Owner: speech_mfcc.",
++    )
++    mfcc_1_std: Optional[float] = Field(
++        default=None,
++        description="Standard deviation of MFCC 1 across analysis frames. "
++                    "Owner: speech_mfcc.",
++        ge=0.0,
++    )
++    mfcc_2_mean: Optional[float] = Field(
++        default=None,
++        description="Mean of MFCC 2 across analysis frames. "
++                    "Owner: speech_mfcc.",
++    )
++    mfcc_2_std: Optional[float] = Field(
++        default=None,
++        description="Standard deviation of MFCC 2 across analysis frames. "
++                    "Owner: speech_mfcc.",
++        ge=0.0,
++    )
++    mfcc_3_mean: Optional[float] = Field(
++        default=None,
++        description="Mean of MFCC 3 across analysis frames. "
++                    "Owner: speech_mfcc.",
++    )
++    mfcc_3_std: Optional[float] = Field(
++        default=None,
++        description="Standard deviation of MFCC 3 across analysis frames. "
++                    "Owner: speech_mfcc.",
++        ge=0.0,
++    )
++    mfcc_4_mean: Optional[float] = Field(
++        default=None,
++        description="Mean of MFCC 4 across analysis frames. "
++                    "Owner: speech_mfcc.",
++    )
++    mfcc_4_std: Optional[float] = Field(
++        default=None,
++        description="Standard deviation of MFCC 4 across analysis frames. "
++                    "Owner: speech_mfcc.",
++        ge=0.0,
++    )
++    mfcc_5_mean: Optional[float] = Field(
++        default=None,
++        description="Mean of MFCC 5 across analysis frames. "
++                    "Owner: speech_mfcc.",
++    )
++    mfcc_5_std: Optional[float] = Field(
++        default=None,
++        description="Standard deviation of MFCC 5 across analysis frames. "
++                    "Owner: speech_mfcc.",
++        ge=0.0,
++    )
++    mfcc_6_mean: Optional[float] = Field(
++        default=None,
++        description="Mean of MFCC 6 across analysis frames. "
++                    "Owner: speech_mfcc.",
++    )
++    mfcc_6_std: Optional[float] = Field(
++        default=None,
++        description="Standard deviation of MFCC 6 across analysis frames. "
++                    "Owner: speech_mfcc.",
++        ge=0.0,
++    )
++    mfcc_7_mean: Optional[float] = Field(
++        default=None,
++        description="Mean of MFCC 7 across analysis frames. "
++                    "Owner: speech_mfcc.",
++    )
++    mfcc_7_std: Optional[float] = Field(
++        default=None,
++        description="Standard deviation of MFCC 7 across analysis frames. "
++                    "Owner: speech_mfcc.",
++        ge=0.0,
++    )
++    mfcc_8_mean: Optional[float] = Field(
++        default=None,
++        description="Mean of MFCC 8 across analysis frames. "
++                    "Owner: speech_mfcc.",
++    )
++    mfcc_8_std: Optional[float] = Field(
++        default=None,
++        description="Standard deviation of MFCC 8 across analysis frames. "
++                    "Owner: speech_mfcc.",
++        ge=0.0,
++    )
++    mfcc_9_mean: Optional[float] = Field(
++        default=None,
++        description="Mean of MFCC 9 across analysis frames. "
++                    "Owner: speech_mfcc.",
++    )
++    mfcc_9_std: Optional[float] = Field(
++        default=None,
++        description="Standard deviation of MFCC 9 across analysis frames. "
++                    "Owner: speech_mfcc.",
++        ge=0.0,
++    )
++    mfcc_10_mean: Optional[float] = Field(
++        default=None,
++        description="Mean of MFCC 10 across analysis frames. "
++                    "Owner: speech_mfcc.",
++    )
++    mfcc_10_std: Optional[float] = Field(
++        default=None,
++        description="Standard deviation of MFCC 10 across analysis frames. "
++                    "Owner: speech_mfcc.",
++        ge=0.0,
++    )
++    mfcc_11_mean: Optional[float] = Field(
++        default=None,
++        description="Mean of MFCC 11 across analysis frames. "
++                    "Owner: speech_mfcc.",
++    )
++    mfcc_11_std: Optional[float] = Field(
++        default=None,
++        description="Standard deviation of MFCC 11 across analysis frames. "
++                    "Owner: speech_mfcc.",
++        ge=0.0,
++    )
++    mfcc_12_mean: Optional[float] = Field(
++        default=None,
++        description="Mean of MFCC 12 across analysis frames. "
++                    "Owner: speech_mfcc.",
++    )
++    mfcc_12_std: Optional[float] = Field(
++        default=None,
++        description="Standard deviation of MFCC 12 across analysis frames. "
++                    "Owner: speech_mfcc.",
++        ge=0.0,
++    )
++    mfcc_13_mean: Optional[float] = Field(
++        default=None,
++        description="Mean of MFCC 13 across analysis frames. "
++                    "Owner: speech_mfcc.",
++    )
++    mfcc_13_std: Optional[float] = Field(
++        default=None,
++        description="Standard deviation of MFCC 13 across analysis frames. "
++                    "Owner: speech_mfcc.",
++        ge=0.0,
++    )
++    zero_crossing_rate_mean: Optional[float] = Field(
++        default=None,
++        description="Mean zero-crossing rate across analysis frames. "
++                    "Owner: speech_mfcc.",
++        ge=0.0,
++        le=1.0,
++    )
++    zero_crossing_rate_std: Optional[float] = Field(
++        default=None,
++        description="Standard deviation of zero-crossing rate across analysis frames. "
++                    "Owner: speech_mfcc.",
++        ge=0.0,
++    )
+     speech_burst_count: Optional[int] = Field(
+         default=None,
+         description="Count of voiced speech bursts between qualifying pauses. "
+--- a/src/core/registry_definitions_temporal.py
++++ b/src/core/registry_definitions_temporal.py
+@@ -304,6 +304,126 @@
+             ),
+         ),
+ 
++        AnalyticID.SPEECH_MFCC: AnalyticContract(
++            analytic_id=AnalyticID.SPEECH_MFCC,
++            name="Speech MFCC",
++            category="temporal",
++            status=AnalyticStatus.ACTIVE,
++            purpose=(
++                "Compute interpretable scalar summaries (per-coefficient mean "
++                "and standard deviation) of the first 13 MFCCs plus "
++                "zero-crossing-rate summaries from the normalized waveform, "
++                "for use as hand-crafted features by baseline classifiers."
++            ),
++            code_path="src/features/temporal/speech_mfcc.py",
++            engine_owner=EngineOwner.AUDIO,
++            required_inputs=("normalized_audio",),
++            optional_inputs=(),
++            preprocessing_deps=("audio_normalization",),
++            output_keys=(
++                "mfcc_1_mean",
++                "mfcc_1_std",
++                "mfcc_2_mean",
++                "mfcc_2_std",
++                "mfcc_3_mean",
++                "mfcc_3_std",
++                "mfcc_4_mean",
++                "mfcc_4_std",
++                "mfcc_5_mean",
++                "mfcc_5_std",
++                "mfcc_6_mean",
++                "mfcc_6_std",
++                "mfcc_7_mean",
++                "mfcc_7_std",
++                "mfcc_8_mean",
++                "mfcc_8_std",
++                "mfcc_9_mean",
++                "mfcc_9_std",
++                "mfcc_10_mean",
++                "mfcc_10_std",
++                "mfcc_11_mean",
++                "mfcc_11_std",
++                "mfcc_12_mean",
++                "mfcc_12_std",
++                "mfcc_13_mean",
++                "mfcc_13_std",
++                "zero_crossing_rate_mean",
++                "zero_crossing_rate_std",
++            ),
++            clvad_fields=(
++                "mfcc_1_mean",
++                "mfcc_1_std",
++                "mfcc_2_mean",
++                "mfcc_2_std",
++                "mfcc_3_mean",
++                "mfcc_3_std",
++                "mfcc_4_mean",
++                "mfcc_4_std",
++                "mfcc_5_mean",
++                "mfcc_5_std",
++                "mfcc_6_mean",
++                "mfcc_6_std",
++                "mfcc_7_mean",
++                "mfcc_7_std",
++                "mfcc_8_mean",
++                "mfcc_8_std",
++                "mfcc_9_mean",
++                "mfcc_9_std",
++                "mfcc_10_mean",
++                "mfcc_10_std",
++                "mfcc_11_mean",
++                "mfcc_11_std",
++                "mfcc_12_mean",
++                "mfcc_12_std",
++                "mfcc_13_mean",
++                "mfcc_13_std",
++                "zero_crossing_rate_mean",
++                "zero_crossing_rate_std",
++            ),
++            field_classification={
++                "mfcc_1_mean": S,
++                "mfcc_1_std": S,
++                "mfcc_2_mean": S,
++                "mfcc_2_std": S,
++                "mfcc_3_mean": S,
++                "mfcc_3_std": S,
++                "mfcc_4_mean": S,
++                "mfcc_4_std": S,
++                "mfcc_5_mean": S,
++                "mfcc_5_std": S,
++                "mfcc_6_mean": S,
++                "mfcc_6_std": S,
++                "mfcc_7_mean": S,
++                "mfcc_7_std": S,
++                "mfcc_8_mean": S,
++                "mfcc_8_std": S,
++                "mfcc_9_mean": S,
++                "mfcc_9_std": S,
++                "mfcc_10_mean": S,
++                "mfcc_10_std": S,
++                "mfcc_11_mean": S,
++                "mfcc_11_std": S,
++                "mfcc_12_mean": S,
++                "mfcc_12_std": S,
++                "mfcc_13_mean": S,
++                "mfcc_13_std": S,
++                "zero_crossing_rate_mean": S,
++                "zero_crossing_rate_std": S,
++            },
++            visualization_compat=("summary_chart",),
++            validation_strategy="unit + schema + deterministic_repeat_run",
++            failure_behavior="skip when sample rate or non-silent waveform evidence is unavailable",
++            related_feature_ids=("F-023",),
++            related_decision_ids=("DEC-074",),
++            notes=(
++                "Complements speech_spectral by adding cepstral (MFCC) and "
++                "zero-crossing coverage that speech_spectral intentionally "
++                "deferred. Scalar summaries only; time-resolved MFCC / log-Mel "
++                "for deep models is computed in the training pipeline, not "
++                "stored in the CLVAD record."
++            ),
++        ),
++
+         AnalyticID.SPEECH_RHYTHM: AnalyticContract(
+             analytic_id=AnalyticID.SPEECH_RHYTHM,
+             name="Speech Rhythm",
+--- a/src/aggregation/field_mapper.py
++++ b/src/aggregation/field_mapper.py
+@@ -133,6 +133,34 @@
+     "spectral_rolloff_mean_hz":      "rhythmic",
+     "spectral_bandwidth_mean_hz":    "rhythmic",
+     "spectral_flatness_mean":        "rhythmic",
++    "mfcc_1_mean":                   "rhythmic",
++    "mfcc_1_std":                    "rhythmic",
++    "mfcc_2_mean":                   "rhythmic",
++    "mfcc_2_std":                    "rhythmic",
++    "mfcc_3_mean":                   "rhythmic",
++    "mfcc_3_std":                    "rhythmic",
++    "mfcc_4_mean":                   "rhythmic",
++    "mfcc_4_std":                    "rhythmic",
++    "mfcc_5_mean":                   "rhythmic",
++    "mfcc_5_std":                    "rhythmic",
++    "mfcc_6_mean":                   "rhythmic",
++    "mfcc_6_std":                    "rhythmic",
++    "mfcc_7_mean":                   "rhythmic",
++    "mfcc_7_std":                    "rhythmic",
++    "mfcc_8_mean":                   "rhythmic",
++    "mfcc_8_std":                    "rhythmic",
++    "mfcc_9_mean":                   "rhythmic",
++    "mfcc_9_std":                    "rhythmic",
++    "mfcc_10_mean":                  "rhythmic",
++    "mfcc_10_std":                   "rhythmic",
++    "mfcc_11_mean":                  "rhythmic",
++    "mfcc_11_std":                   "rhythmic",
++    "mfcc_12_mean":                  "rhythmic",
++    "mfcc_12_std":                   "rhythmic",
++    "mfcc_13_mean":                  "rhythmic",
++    "mfcc_13_std":                   "rhythmic",
++    "zero_crossing_rate_mean":       "rhythmic",
++    "zero_crossing_rate_std":        "rhythmic",
+     "speech_burst_count":            "rhythmic",
+     "mean_burst_duration":           "rhythmic",
+     "burst_duration_variability":    "rhythmic",
+--- a/src/pipeline/run_profiles.py
++++ b/src/pipeline/run_profiles.py
+@@ -55,6 +55,7 @@
+         AnalyticID.SPEECH_VAD_CONFIDENCE,
+         AnalyticID.ALIGNMENT_ANALYSIS,
+         AnalyticID.SPEECH_SPECTRAL,
++        AnalyticID.SPEECH_MFCC,
+         AnalyticID.SPEECH_RHYTHM,
+         AnalyticID.SPEECH_TURN_DYNAMICS,
+         AnalyticID.FORMANT_ANALYSIS,
+--- a/data/thesis_feature_manifest.json
++++ b/data/thesis_feature_manifest.json
+@@ -95,7 +95,7 @@
+     },
+     "speech_delivery": {
+       "description": "Features derived from paired transcript and normalised speech/vocal audio. Should be populated for speech_with_transcript records.",
+-      "analytics": ["pause_analysis", "speech_rate", "speech_prosody", "speech_spectral", "speech_rhythm"],
++      "analytics": ["pause_analysis", "speech_rate", "speech_prosody", "speech_spectral", "speech_mfcc", "speech_rhythm"],
+       "fields": [
+         {"field": "pause_count",                              "section": "rhythmic", "analytic": "pause_analysis"},
+         {"field": "avg_pause_duration",                       "section": "rhythmic", "analytic": "pause_analysis"},
+@@ -125,6 +125,34 @@
+         {"field": "spectral_rolloff_mean_hz",                 "section": "rhythmic", "analytic": "speech_spectral"},
+         {"field": "spectral_bandwidth_mean_hz",               "section": "rhythmic", "analytic": "speech_spectral"},
+         {"field": "spectral_flatness_mean",                   "section": "rhythmic", "analytic": "speech_spectral"},
++        {"field": "mfcc_1_mean",                           "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_1_std",                            "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_2_mean",                           "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_2_std",                            "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_3_mean",                           "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_3_std",                            "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_4_mean",                           "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_4_std",                            "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_5_mean",                           "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_5_std",                            "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_6_mean",                           "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_6_std",                            "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_7_mean",                           "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_7_std",                            "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_8_mean",                           "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_8_std",                            "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_9_mean",                           "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_9_std",                            "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_10_mean",                          "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_10_std",                           "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_11_mean",                          "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_11_std",                           "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_12_mean",                          "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_12_std",                           "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_13_mean",                          "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "mfcc_13_std",                           "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "zero_crossing_rate_mean",               "section": "rhythmic", "analytic": "speech_mfcc"},
++        {"field": "zero_crossing_rate_std",                "section": "rhythmic", "analytic": "speech_mfcc"},
+         {"field": "speech_burst_count",                       "section": "rhythmic", "analytic": "speech_rhythm"},
+         {"field": "mean_burst_duration",                      "section": "rhythmic", "analytic": "speech_rhythm"},
+         {"field": "burst_duration_variability",               "section": "rhythmic", "analytic": "speech_rhythm"},
+--- a/tests/unit/features/test_speech_mfcc.py
++++ b/tests/unit/features/test_speech_mfcc.py
+@@ -0,0 +1,91 @@
++"""Unit tests for the speech_mfcc temporal analytic."""
++
++from __future__ import annotations
++
++import unittest
++from types import SimpleNamespace
++
++import numpy as np
++
++from src.features.temporal import speech_mfcc
++from src.schemas.clvad_schema import AnalyticID
++
++
++def _sine(sample_rate: int = 16000, freq: float = 220.0, seconds: float = 1.0) -> np.ndarray:
++    time_axis = np.linspace(0.0, seconds, int(sample_rate * seconds), endpoint=False)
++    return np.sin(2.0 * np.pi * freq * time_axis).astype(float)
++
++
++class TestSpeechMfcc(unittest.TestCase):
++    def test_sine_wave_produces_all_28_fields(self) -> None:
++        if not speech_mfcc._LIBROSA_AVAILABLE:
++            self.skipTest("librosa unavailable")
++        sample_rate = 16000
++        result = speech_mfcc.run(SimpleNamespace(
++            normalized_waveform=_sine(sample_rate),
++            sample_rate=sample_rate,
++        ))
++
++        self.assertEqual(result.status, "success")
++        self.assertEqual(result.analytic_id, AnalyticID.SPEECH_MFCC)
++        self.assertEqual(len(result.fields), 28)
++        for i in range(1, 14):
++            self.assertIn(f"mfcc_{i}_mean", result.fields)
++            self.assertIn(f"mfcc_{i}_std", result.fields)
++            self.assertGreaterEqual(result.fields[f"mfcc_{i}_std"], 0.0)
++        self.assertIn("zero_crossing_rate_mean", result.fields)
++        self.assertIn("zero_crossing_rate_std", result.fields)
++
++    def test_mfcc_mean_can_be_negative(self) -> None:
++        # MFCC means are not bounded below at zero; the schema must allow this.
++        if not speech_mfcc._LIBROSA_AVAILABLE:
++            self.skipTest("librosa unavailable")
++        result = speech_mfcc.run(SimpleNamespace(
++            normalized_waveform=_sine(),
++            sample_rate=16000,
++        ))
++        self.assertEqual(result.status, "success")
++        # The 0th cepstral coefficient (energy term) is typically strongly negative
++        # for a low-amplitude normalized sine; at minimum, some mean is < 0.
++        means = [v for k, v in result.fields.items() if k.endswith("_mean") and k.startswith("mfcc_")]
++        self.assertTrue(any(m < 0.0 for m in means))
++
++    def test_zcr_mean_in_unit_interval(self) -> None:
++        if not speech_mfcc._LIBROSA_AVAILABLE:
++            self.skipTest("librosa unavailable")
++        result = speech_mfcc.run(SimpleNamespace(
++            normalized_waveform=_sine(),
++            sample_rate=16000,
++        ))
++        zcr = result.fields["zero_crossing_rate_mean"]
++        self.assertGreaterEqual(zcr, 0.0)
++        self.assertLessEqual(zcr, 1.0)
++
++    def test_all_zero_waveform_skips_without_null_fields(self) -> None:
++        result = speech_mfcc.run(SimpleNamespace(
++            normalized_waveform=np.zeros(4096, dtype=float),
++            sample_rate=16000,
++        ))
++        self.assertEqual(result.status, "skipped")
++        self.assertEqual(result.fields, {})
++        self.assertIn("all-zero", result.skip_reason)
++
++    def test_missing_sample_rate_skips(self) -> None:
++        result = speech_mfcc.run(SimpleNamespace(
++            normalized_waveform=np.ones(4096, dtype=float),
++            sample_rate=None,
++        ))
++        self.assertEqual(result.status, "skipped")
++        self.assertIn("sample_rate unavailable", result.skip_reason)
++
++    def test_deterministic_for_identical_input(self) -> None:
++        if not speech_mfcc._LIBROSA_AVAILABLE:
++            self.skipTest("librosa unavailable")
++        wave = _sine(seconds=0.5)
++        first = speech_mfcc.run(SimpleNamespace(normalized_waveform=wave, sample_rate=16000))
++        second = speech_mfcc.run(SimpleNamespace(normalized_waveform=wave, sample_rate=16000))
++        self.assertEqual(first.fields, second.fields)
++
++
++if __name__ == "__main__":
++    unittest.main()
+--- a/docs/architecture/ANALYTICS_REGISTRY.md
++++ b/docs/architecture/ANALYTICS_REGISTRY.md
+@@ -81,6 +81,7 @@
+ | speech_rate | Speech Rate | temporal | active | `src/features/temporal/speech_rate.py` | tokens, normalized audio | `words_per_second`, `speech_rate_wpm`, `syllables_per_second`, `hesitation_marker_count`, `word_count` | same as output keys | summary chart | unit + schema + deterministic repeat-run |
+ | speech_prosody | Speech Prosody | temporal | active | `src/features/temporal/speech_prosody.py` | normalized audio | `voiced_ratio`, `unvoiced_ratio`, `speaking_time_ratio`, `long_pause_ratio`, `long_pause_count`, `pause_duration_variability`, `pitch_variability_hz`, `pitch_variability_semitones`, `pitch_median_hz`, `intensity_mean`, `intensity_mean_db`, `intensity_percentile_10`, `intensity_percentile_90`, `intensity_variance`, `intensity_range`, `intensity_coefficient_of_variation`, `articulation_rate_syllables_per_second`, `inter_pause_interval_mean`, `inter_pause_interval_variability` | same as output keys | summary chart, timeline plot, waveform overlay | unit + schema + deterministic repeat-run + real input validation |
+ | speech_spectral | Speech Spectral | temporal | active | `src/features/temporal/speech_spectral.py` | normalized audio | `spectral_centroid_mean_hz`, `spectral_rolloff_mean_hz`, `spectral_bandwidth_mean_hz`, `spectral_flatness_mean` | same as output keys | summary chart, waveform overlay | unit + schema + deterministic repeat-run |
++| speech_mfcc | Speech MFCC | temporal | active | `src/features/temporal/speech_mfcc.py` | normalized audio | `mfcc_1_mean`..`mfcc_13_mean`, `mfcc_1_std`..`mfcc_13_std`, `zero_crossing_rate_mean`, `zero_crossing_rate_std` (28 fields) | same as output keys | summary chart | unit + schema + deterministic repeat-run |
+ | speech_rhythm | Speech Rhythm | temporal | active | `src/features/temporal/speech_rhythm.py` | normalized audio | `speech_burst_count`, `mean_burst_duration`, `burst_duration_variability`, `burst_pause_ratio` | same as output keys | timeline plot, summary chart | unit + schema + deterministic repeat-run |
+ | speech_vad_confidence | Speech VAD Confidence | temporal | active | `src/features/temporal/speech_vad_confidence.py` | normalized audio, optional reusable RMS energy trace | `speech_activity_confidence_score`, `usable_speech_ratio`, `noise_floor_db`, `speech_noise_contrast_db` | same as output keys | summary chart, waveform overlay | unit + schema + deterministic repeat-run + real speech validation |
+ | speech_turn_dynamics | Speech Turn Dynamics | temporal | active | `src/features/temporal/speech_turn_dynamics.py` | speaker-labelled turn spans or diarization output | `speaker_turn_count`, `mean_speaker_turn_duration`, `turn_duration_variability`, `turn_exchange_rate_per_minute`, `speaker_balance_ratio` | same as output keys | turn timeline, call summary | unit + schema + deterministic repeat-run + real speech validation |
+@@ -874,6 +875,63 @@
+ 
+ ---
+ 
++### speech_mfcc
++
++* Name: Speech MFCC
++* Category: temporal
++* Status: active
++* Purpose: Provide interpretable scalar cepstral (MFCC) and zero-crossing-rate summaries as hand-crafted features for baseline classifiers.
++* Code Path: `src/features/temporal/speech_mfcc.py`
++* Engine Owner: audio
++* Required Inputs:
++
++  * normalized audio
++* Optional Inputs:
++
++  * none
++* Preprocessing Dependencies:
++
++  * audio normalization
++* Output Keys:
++
++  * `mfcc_1_mean` .. `mfcc_13_mean` (per-coefficient mean across frames)
++  * `mfcc_1_std` .. `mfcc_13_std` (per-coefficient standard deviation across frames)
++  * `zero_crossing_rate_mean`
++  * `zero_crossing_rate_std`
++* CLVAD Field Mappings:
++
++  * all output keys map to `rhythmic_features`
++* Visualization Compatibility:
++
++  * summary chart
++* Validation Strategy:
++
++  * unit validation
++  * schema validation
++  * deterministic repeat-run validation
++* Failure Behavior:
++
++  * skip when `sample_rate` is unavailable
++  * skip all-zero waveforms so cepstral zeros are not mistaken for valid evidence
++* Related Feature IDs:
++
++  * F-023
++* Related Decision IDs:
++
++  * DEC-074
++* Related Thesis Sections:
++
++  * methodology
++  * evaluation
++  * speech-delivery analysis
++* Notes:
++
++  * Complements speech_spectral by adding the cepstral (MFCC) and zero-crossing coverage that speech_spectral intentionally deferred.
++  * Scalar summaries only. MFCC means are unbounded (the 0th coefficient is typically strongly negative), so mean fields carry no non-negativity constraint; std fields are >= 0 and zero_crossing_rate_mean is in [0, 1].
++  * Time-resolved MFCC / log-Mel representations for deep models (CNN, wav2vec 2.0) are computed in the training pipeline, not stored in the CLVAD record.
++
++---
++
+ ### speech_rhythm
+ 
+ * Name: Speech Rhythm
+--- a/docs/logs/CHANGELOG.md
++++ b/docs/logs/CHANGELOG.md
+@@ -2,6 +2,43 @@
+ 
+ ---
+ 
++## 2026-06-06 - speech_mfcc analytic (MFCC + zero-crossing-rate summaries)
++
++### Change Type
++
++new analytic, schema fields, registry, field routing, profile wiring, manifest, tests, documentation
++
++### Summary
++
++Added the `speech_mfcc` temporal analytic, closing the MFCC gap that
++`speech_spectral` explicitly deferred and adding zero-crossing-rate coverage.
++Emits 28 interpretable scalar summary fields (per-coefficient mean and standard
++deviation for MFCCs 1-13, plus ZCR mean and std), routed into
++`rhythmic_features`. These are the hand-crafted features consumed by the SVM /
++Random-Forest baselines for pathological-speech classification. Time-resolved
++MFCC / log-Mel representations for deep models are computed in the training
++pipeline and are not stored in the CLVAD record.
++
++### Files touched
++
++- `src/schemas/clvad_enums.py` - `SPEECH_MFCC` AnalyticID member
++- `src/features/temporal/speech_mfcc.py` - new analytic (mirrors speech_spectral)
++- `src/schemas/clvad_features_rhythmic.py` - 28 new `Optional[float]` fields
++- `src/core/registry_definitions_temporal.py` - `SPEECH_MFCC` contract
++- `src/aggregation/field_mapper.py` - 28 routing entries -> rhythmic
++- `src/pipeline/run_profiles.py` - added to `speech_with_transcript` profile
++- `data/thesis_feature_manifest.json` - registered in `speech_delivery` family
++- `tests/unit/features/test_speech_mfcc.py` - 6 unit tests
++- `docs/architecture/ANALYTICS_REGISTRY.md` - table row + detailed entry
++
++### Notes
++
++MFCC mean fields are unbounded (no `ge=0.0`); std fields are `>= 0`;
++`zero_crossing_rate_mean` is in `[0, 1]`. Registry instantiates with 22
++analytics; ownership and completeness guards pass.
++
++---
++
+ ## 2026-06-06 - Line-Metric-Alignment View (Tier B, Phase B3)
+ 
+ ### Change Type
+--- a/docs/logs/DAILY_LOG.md
++++ b/docs/logs/DAILY_LOG.md
+@@ -2,6 +2,26 @@
+ 
+ ---
+ 
++## 2026-06-06 - speech_mfcc analytic (MFCC + ZCR)
++
++### Work completed
++
++- Implemented `speech_mfcc` temporal analytic: per-coefficient mean/std for
++  MFCCs 1-13 + zero-crossing-rate mean/std (28 scalar summary fields).
++- Wired it end-to-end: AnalyticID enum, contract, schema fields, field-mapper
++  routing into `rhythmic_features`, `speech_with_transcript` profile, and the
++  thesis feature manifest (`speech_delivery` family).
++- Added 6 unit tests (including the MFCC-mean-can-be-negative schema case).
++- Verified: registry instantiates (22 analytics), CoreEngine dispatches the
++  analytic, and all 28 fields populate the record via the aggregator.
++
++### Notes
++
++- Scalar-summary house style retained (matches speech_spectral). Deep-model
++  spectrogram inputs remain a training-pipeline concern, not CLVAD fields.
++
++---
++
+ ## 2026-06-06 - Line-Metric-Alignment View (Tier B, Phase B3)
+ 
+ ### Work completed

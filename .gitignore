@@ -1,0 +1,32 @@
+# --- Data (do NOT commit TORGO or any speech corpora; large + licensed) ---
+*.tar
+*.tar.bz2
+*.bz2
+*.wav
+*.flac
+*.mp3
+torgo_raw/
+torgo_records/
+**/wav_headMic/
+**/wav_arrayMic/
+
+# --- The CLVAD engine is a separate upstream repo; do not vendor it here ---
+engine_repo/
+creative-analysis-engine*/
+
+# --- Build / environment artifacts ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# --- OS / editor noise ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+
+# Generated outputs
+results/features_torgo*.csv

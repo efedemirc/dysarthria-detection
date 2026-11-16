@@ -1,0 +1,177 @@
+{
+  "svm_rbf": {
+    "usable_folds": 15,
+    "accuracy": 0.6573758519961052,
+    "macro_f1": 0.6485080592625208,
+    "labels": [
+      "control",
+      "dysarthric"
+    ],
+    "confusion_matrix": [
+      [
+        3353,
+        1867
+      ],
+      [
+        948,
+        2048
+      ]
+    ],
+    "report": {
+      "control": {
+        "precision": 0.7795861427574983,
+        "recall": 0.6423371647509578,
+        "f1-score": 0.7043377796449952,
+        "support": 5220.0
+      },
+      "dysarthric": {
+        "precision": 0.5231162196679439,
+        "recall": 0.6835781041388518,
+        "f1-score": 0.5926783388800463,
+        "support": 2996.0
+      },
+      "accuracy": 0.6573758519961052,
+      "macro avg": {
+        "precision": 0.6513511812127211,
+        "recall": 0.6629576344449049,
+        "f1-score": 0.6485080592625208,
+        "support": 8216.0
+      },
+      "weighted avg": {
+        "precision": 0.686063274016468,
+        "recall": 0.6573758519961052,
+        "f1-score": 0.6636206807487213,
+        "support": 8216.0
+      }
+    }
+  },
+  "random_forest": {
+    "usable_folds": 15,
+    "accuracy": 0.625730282375852,
+    "macro_f1": 0.6164648409329212,
+    "labels": [
+      "control",
+      "dysarthric"
+    ],
+    "confusion_matrix": [
+      [
+        3209,
+        2011
+      ],
+      [
+        1064,
+        1932
+      ]
+    ],
+    "report": {
+      "control": {
+        "precision": 0.7509946173648491,
+        "recall": 0.6147509578544061,
+        "f1-score": 0.6760771094490677,
+        "support": 5220.0
+      },
+      "dysarthric": {
+        "precision": 0.4899822470200355,
+        "recall": 0.6448598130841121,
+        "f1-score": 0.5568525724167748,
+        "support": 2996.0
+      },
+      "accuracy": 0.625730282375852,
+      "macro avg": {
+        "precision": 0.6204884321924423,
+        "recall": 0.6298053854692591,
+        "f1-score": 0.6164648409329212,
+        "support": 8216.0
+      },
+      "weighted avg": {
+        "precision": 0.6558153255497248,
+        "recall": 0.625730282375852,
+        "f1-score": 0.6326013654192784,
+        "support": 8216.0
+      }
+    }
+  },
+  "rf_feature_importance_top20": [
+    {
+      "feature": "rhythmic_features.noise_floor_db",
+      "importance": 0.06697435781298411
+    },
+    {
+      "feature": "rhythmic_features.mfcc_13_mean",
+      "importance": 0.0642723766567181
+    },
+    {
+      "feature": "rhythmic_features.intensity_percentile_10",
+      "importance": 0.04916422277509299
+    },
+    {
+      "feature": "rhythmic_features.mfcc_4_mean",
+      "importance": 0.045557900052924136
+    },
+    {
+      "feature": "audio_quality_features.peak_amplitude",
+      "importance": 0.04140078132987623
+    },
+    {
+      "feature": "rhythmic_features.mfcc_5_mean",
+      "importance": 0.03320429219684559
+    },
+    {
+      "feature": "rhythmic_features.mfcc_8_mean",
+      "importance": 0.03259312232860488
+    },
+    {
+      "feature": "rhythmic_features.mfcc_7_std",
+      "importance": 0.027137622950271455
+    },
+    {
+      "feature": "rhythmic_features.mfcc_1_mean",
+      "importance": 0.023899550019601142
+    },
+    {
+      "feature": "rhythmic_features.intensity_range",
+      "importance": 0.02137960660694113
+    },
+    {
+      "feature": "rhythmic_features.mfcc_6_mean",
+      "importance": 0.021315831141524803
+    },
+    {
+      "feature": "rhythmic_features.pitch_median_hz",
+      "importance": 0.020204983353524955
+    },
+    {
+      "feature": "rhythmic_features.spectral_rolloff_mean_hz",
+      "importance": 0.019333100624645234
+    },
+    {
+      "feature": "vocal_features.mean_pitch_hz",
+      "importance": 0.01891645965152153
+    },
+    {
+      "feature": "rhythmic_features.mfcc_1_std",
+      "importance": 0.018304971512480627
+    },
+    {
+      "feature": "rhythmic_features.mean_burst_duration",
+      "importance": 0.018097027106651963
+    },
+    {
+      "feature": "rhythmic_features.speech_activity_confidence_score",
+      "importance": 0.01808529058634172
+    },
+    {
+      "feature": "waveform_features.silence_ratio",
+      "importance": 0.017795696281015672
+    },
+    {
+      "feature": "vocal_features.max_pitch_hz",
+      "importance": 0.017352842697807718
+    },
+    {
+      "feature": "audio_quality_features.clipping_ratio",
+      "importance": 0.014721079310054818
+    }
+  ],
+  "shap_available": true
+}

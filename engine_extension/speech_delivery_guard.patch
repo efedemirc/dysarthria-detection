@@ -1,0 +1,36 @@
+--- a/src/features/temporal/speech_delivery_dynamics.py
++++ b/src/features/temporal/speech_delivery_dynamics.py
+@@ -44,13 +44,30 @@
+                 ),
+             )
+         segments = spine.get("segments") or []
++        npvi = speech_rhythm_npvi(segments)
++        reset = pitch_reset_ratio(segments)
++        bearing = pitch_bearing_segment_ratio(segments)
++        if npvi is None or reset is None or bearing is None:
++            # Fewer than two voiced segments (e.g. single-word clips): the
++            # durational/pitch rhythm metrics are undefined. Skip gracefully so
++            # the record keeps its other analytics instead of failing the whole
++            # record on a None summary field.
++            return AnalyticOutput(
++                analytic_id=_ANALYTIC_ID,
++                status="skipped",
++                fields={},
++                skip_reason=(
++                    "speech_delivery_dynamics: insufficient voiced segments for "
++                    "durational/pitch rhythm metrics (need >= 2)"
++                ),
++            )
+         return AnalyticOutput(
+             analytic_id=_ANALYTIC_ID,
+             status="success",
+             fields={
+-                "speech_rhythm_npvi": speech_rhythm_npvi(segments),
+-                "pitch_reset_ratio": pitch_reset_ratio(segments),
+-                "pitch_bearing_segment_ratio": pitch_bearing_segment_ratio(segments),
++                "speech_rhythm_npvi": npvi,
++                "pitch_reset_ratio": reset,
++                "pitch_bearing_segment_ratio": bearing,
+             },
+         )
+     except Exception as exc:  # pragma: no cover - defensive engine boundary

@@ -1,0 +1,205 @@
+{
+  "svm_rbf": {
+    "usable_folds": 8,
+    "accuracy": 0.26535380507343126,
+    "macro_f1": 0.16240355430691164,
+    "labels": [
+      "mild",
+      "moderate",
+      "severe"
+    ],
+    "confusion_matrix": [
+      [
+        0,
+        199,
+        472
+      ],
+      [
+        254,
+        12,
+        834
+      ],
+      [
+        117,
+        325,
+        783
+      ]
+    ],
+    "report": {
+      "mild": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 671.0
+      },
+      "moderate": {
+        "precision": 0.022388059701492536,
+        "recall": 0.01090909090909091,
+        "f1-score": 0.014669926650366748,
+        "support": 1100.0
+      },
+      "severe": {
+        "precision": 0.37482048827190045,
+        "recall": 0.6391836734693878,
+        "f1-score": 0.47254073627036813,
+        "support": 1225.0
+      },
+      "accuracy": 0.26535380507343126,
+      "macro avg": {
+        "precision": 0.13240284932446433,
+        "recall": 0.21669758812615955,
+        "f1-score": 0.16240355430691164,
+        "support": 2996.0
+      },
+      "weighted avg": {
+        "precision": 0.16147595587607472,
+        "recall": 0.26535380507343126,
+        "f1-score": 0.19859790428791868,
+        "support": 2996.0
+      }
+    }
+  },
+  "random_forest": {
+    "usable_folds": 8,
+    "accuracy": 0.2623497997329773,
+    "macro_f1": 0.16158806171326917,
+    "labels": [
+      "mild",
+      "moderate",
+      "severe"
+    ],
+    "confusion_matrix": [
+      [
+        0,
+        197,
+        474
+      ],
+      [
+        149,
+        29,
+        922
+      ],
+      [
+        208,
+        260,
+        757
+      ]
+    ],
+    "report": {
+      "mild": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 671.0
+      },
+      "moderate": {
+        "precision": 0.059670781893004114,
+        "recall": 0.026363636363636363,
+        "f1-score": 0.03656998738965952,
+        "support": 1100.0
+      },
+      "severe": {
+        "precision": 0.35160241523455643,
+        "recall": 0.6179591836734694,
+        "f1-score": 0.448194197750148,
+        "support": 1225.0
+      },
+      "accuracy": 0.2623497997329773,
+      "macro avg": {
+        "precision": 0.13709106570918686,
+        "recall": 0.2147742733457019,
+        "f1-score": 0.16158806171326917,
+        "support": 2996.0
+      },
+      "weighted avg": {
+        "precision": 0.16567116780528576,
+        "recall": 0.2623497997329773,
+        "f1-score": 0.19668387128590012,
+        "support": 2996.0
+      }
+    }
+  },
+  "rf_feature_importance_top20": [
+    {
+      "feature": "waveform_features.silence_ratio",
+      "importance": 0.0934522113423899
+    },
+    {
+      "feature": "rhythmic_features.noise_floor_db",
+      "importance": 0.0560270242197237
+    },
+    {
+      "feature": "audio_quality_features.peak_amplitude",
+      "importance": 0.05261839009046538
+    },
+    {
+      "feature": "rhythmic_features.intensity_percentile_10",
+      "importance": 0.04690525226775156
+    },
+    {
+      "feature": "rhythmic_features.speech_activity_confidence_score",
+      "importance": 0.03295387963886333
+    },
+    {
+      "feature": "rhythmic_features.mfcc_7_std",
+      "importance": 0.032123934502800384
+    },
+    {
+      "feature": "audio_quality_features.clipping_ratio",
+      "importance": 0.031683883963328587
+    },
+    {
+      "feature": "rhythmic_features.mfcc_12_std",
+      "importance": 0.029697544878582168
+    },
+    {
+      "feature": "rhythmic_features.speech_noise_contrast_db",
+      "importance": 0.02866186591979015
+    },
+    {
+      "feature": "rhythmic_features.mfcc_3_mean",
+      "importance": 0.026761296789811755
+    },
+    {
+      "feature": "rhythmic_features.mfcc_6_mean",
+      "importance": 0.024071920825649778
+    },
+    {
+      "feature": "audio_quality_features.dc_offset",
+      "importance": 0.023295351626812993
+    },
+    {
+      "feature": "vocal_features.mean_pitch_hz",
+      "importance": 0.022563142824295886
+    },
+    {
+      "feature": "rhythmic_features.pitch_median_hz",
+      "importance": 0.021818484707132237
+    },
+    {
+      "feature": "rhythmic_features.mfcc_7_mean",
+      "importance": 0.020549546764188666
+    },
+    {
+      "feature": "rhythmic_features.mfcc_8_mean",
+      "importance": 0.01766448705740238
+    },
+    {
+      "feature": "rhythmic_features.mfcc_5_mean",
+      "importance": 0.016683536088910596
+    },
+    {
+      "feature": "rhythmic_features.zero_crossing_rate_mean",
+      "importance": 0.016677670558802274
+    },
+    {
+      "feature": "rhythmic_features.mfcc_13_mean",
+      "importance": 0.014995748230477241
+    },
+    {
+      "feature": "vocal_features.min_pitch_hz",
+      "importance": 0.014585793216907181
+    }
+  ],
+  "shap_available": true
+}

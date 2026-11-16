@@ -1,0 +1,16 @@
+# Python dependencies for the thesis feature/modelling pipeline.
+# (The CLVAD engine has its own requirements.txt — install those too when
+#  running the engine: pip install -r <engine-root>/requirements.txt)
+numpy==2.2.6
+scipy
+pandas
+scikit-learn
+shap
+matplotlib
+librosa==0.10.2
+soxr==0.5.0.post1
+soundfile
+numba
+nltk==3.9.1
+pydantic
+python-dotenv

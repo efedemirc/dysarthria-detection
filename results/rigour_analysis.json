@@ -1,0 +1,18 @@
+{
+  "task": "detection",
+  "features": "temporal",
+  "protocol": "leave-one-speaker-out",
+  "full_corpus_macro_f1": 0.699,
+  "n_recordings": 8216,
+  "bootstrap_ci95": [
+    0.531,
+    0.827
+  ],
+  "bootstrap_note": "2000 resamples over 15 speakers, all held-out predictions",
+  "baselines": {
+    "most_frequent": 0.389,
+    "stratified": 0.461,
+    "uniform": 0.495
+  },
+  "learning_curve_note": "see learning_curve.json; each point tested on all 8216 recordings; rises to 0.699 at k=14 without plateau"
+}

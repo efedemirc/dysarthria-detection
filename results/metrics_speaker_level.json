@@ -1,0 +1,300 @@
+{
+  "task": "detection",
+  "protocol": "leave-one-speaker-out",
+  "feature_set_sizes": {
+    "all": 90,
+    "temporal": 20
+  },
+  "majority_vote": {
+    "results": {
+      "all": {
+        "svm_rbf": {
+          "utterance": {
+            "macro_f1": 0.6485080592625208,
+            "accuracy": 0.6573758519961052
+          },
+          "speaker": {
+            "macro_f1": 0.7321428571428572,
+            "accuracy": 0.7333333333333333,
+            "n_correct": 11,
+            "n_speakers": 15,
+            "misclassified": [
+              "F03",
+              "F04",
+              "FC03",
+              "MC04"
+            ],
+            "labels": [
+              "control",
+              "dysarthric"
+            ],
+            "confusion_matrix": [
+              [
+                5,
+                2
+              ],
+              [
+                2,
+                6
+              ]
+            ]
+          }
+        },
+        "random_forest": {
+          "utterance": {
+            "macro_f1": 0.6175111620244662,
+            "accuracy": 0.6229308666017527
+          },
+          "speaker": {
+            "macro_f1": 0.6666666666666666,
+            "accuracy": 0.6666666666666666,
+            "n_correct": 10,
+            "n_speakers": 15,
+            "misclassified": [
+              "F01",
+              "F03",
+              "F04",
+              "FC03",
+              "MC04"
+            ],
+            "labels": [
+              "control",
+              "dysarthric"
+            ],
+            "confusion_matrix": [
+              [
+                5,
+                2
+              ],
+              [
+                3,
+                5
+              ]
+            ]
+          }
+        }
+      },
+      "temporal": {
+        "svm_rbf": {
+          "utterance": {
+            "macro_f1": 0.6993727876599098,
+            "accuracy": 0.7149464459591042
+          },
+          "speaker": {
+            "macro_f1": 0.8,
+            "accuracy": 0.8,
+            "n_correct": 12,
+            "n_speakers": 15,
+            "misclassified": [
+              "F03",
+              "F04",
+              "MC04"
+            ],
+            "labels": [
+              "control",
+              "dysarthric"
+            ],
+            "confusion_matrix": [
+              [
+                6,
+                1
+              ],
+              [
+                2,
+                6
+              ]
+            ]
+          }
+        },
+        "random_forest": {
+          "utterance": {
+            "macro_f1": 0.6826873731208732,
+            "accuracy": 0.6955939629990263
+          },
+          "speaker": {
+            "macro_f1": 0.7321428571428572,
+            "accuracy": 0.7333333333333333,
+            "n_correct": 11,
+            "n_speakers": 15,
+            "misclassified": [
+              "F03",
+              "F04",
+              "MC03",
+              "MC04"
+            ],
+            "labels": [
+              "control",
+              "dysarthric"
+            ],
+            "confusion_matrix": [
+              [
+                5,
+                2
+              ],
+              [
+                2,
+                6
+              ]
+            ]
+          }
+        }
+      }
+    }
+  },
+  "speaker_aggregation": {
+    "method": "mean+std per speaker, LOSO over speakers",
+    "results": {
+      "all": {
+        "random_forest": {
+          "macro_f1": 0.8,
+          "accuracy": 0.8,
+          "n_correct": 12,
+          "n_speakers": 15,
+          "misclassified": [
+            "F03",
+            "F04",
+            "MC04"
+          ],
+          "labels": [
+            "control",
+            "dysarthric"
+          ],
+          "confusion_matrix": [
+            [
+              6,
+              1
+            ],
+            [
+              2,
+              6
+            ]
+          ]
+        },
+        "logreg": {
+          "macro_f1": 0.8,
+          "accuracy": 0.8,
+          "n_correct": 12,
+          "n_speakers": 15,
+          "misclassified": [
+            "F04",
+            "M03",
+            "MC04"
+          ],
+          "labels": [
+            "control",
+            "dysarthric"
+          ],
+          "confusion_matrix": [
+            [
+              6,
+              1
+            ],
+            [
+              2,
+              6
+            ]
+          ]
+        },
+        "svm_rbf": {
+          "macro_f1": 0.7321428571428572,
+          "accuracy": 0.7333333333333333,
+          "n_correct": 11,
+          "n_speakers": 15,
+          "misclassified": [
+            "F03",
+            "F04",
+            "MC03",
+            "MC04"
+          ],
+          "labels": [
+            "control",
+            "dysarthric"
+          ],
+          "confusion_matrix": [
+            [
+              5,
+              2
+            ],
+            [
+              2,
+              6
+            ]
+          ]
+        }
+      },
+      "temporal": {
+        "random_forest": {
+          "macro_f1": 0.8660714285714286,
+          "accuracy": 0.8666666666666667,
+          "n_correct": 13,
+          "n_speakers": 15,
+          "misclassified": [
+            "F03",
+            "F04"
+          ],
+          "labels": [
+            "control",
+            "dysarthric"
+          ],
+          "confusion_matrix": [
+            [
+              7,
+              0
+            ],
+            [
+              2,
+              6
+            ]
+          ]
+        },
+        "logreg": {
+          "macro_f1": 0.9333333333333333,
+          "accuracy": 0.9333333333333333,
+          "n_correct": 14,
+          "n_speakers": 15,
+          "misclassified": [
+            "F01"
+          ],
+          "labels": [
+            "control",
+            "dysarthric"
+          ],
+          "confusion_matrix": [
+            [
+              7,
+              0
+            ],
+            [
+              1,
+              7
+            ]
+          ]
+        },
+        "svm_rbf": {
+          "macro_f1": 0.8660714285714286,
+          "accuracy": 0.8666666666666667,
+          "n_correct": 13,
+          "n_speakers": 15,
+          "misclassified": [
+            "F01",
+            "FC02"
+          ],
+          "labels": [
+            "control",
+            "dysarthric"
+          ],
+          "confusion_matrix": [
+            [
+              6,
+              1
+            ],
+            [
+              1,
+              7
+            ]
+          ]
+        }
+      }
+    }
+  }
+}
